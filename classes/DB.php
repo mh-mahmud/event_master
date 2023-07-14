@@ -28,136 +28,71 @@ class DB {
         return self::$_instance;
     }
 
-    public function query($sql, $params = array()){
+    public function get($table, $w) {
+        $sql ="";
+        $sql .= " SELECT * FROM events ";
+        
+        if(!empty($w['employee_name']) && !empty($w['event_name']) && !empty($w['event_date'])) {
+            $sql .= " WHERE employee_name=:employee_name AND  event_name=:event_name AND event_date=:event_date";
+        }
+        else if(!empty($w['event_name']) && !empty($w['event_date'])) {
+            $sql .= " WHERE event_name=:event_name AND event_date=:event_date";
+        }
+        else if(!empty($w['employee_name']) && !empty($w['event_date'])) {
+            $sql .= " WHERE employee_name=:employee_name AND event_date=:event_date";
+        }
+        else if(!empty($w['employee_name']) && !empty($w['event_name'])) {
+            $sql .= " WHERE employee_name=:employee_name AND event_name=:event_name";
+        }
+        else if(!empty($w['event_date'])) {
+            $sql .= " WHERE event_date=:event_date";
+        }
+        else if(!empty($w['event_name'])) {
+            $sql .= " WHERE event_name=:event_name";
+        }
+        else if(!empty($w['employee_name'])) {
+            $sql .= " WHERE employee_name=:employee_name";
+        }
 
-        // pending
-        $this->_error = false;
+        $query = $this->_pdo->prepare($sql);
+        $query->execute($w);
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
 
-        if($this->_query = $this->_pdo->prepare($sql)){
-            $x = 1;
-            if(count($params)){
-                foreach($params as $param){
-                    $this->_query->bindValue($x, $param);
-                    $x++;
+    public function insert($table, $fields){
+
+        try {
+            $sql = "INSERT INTO 
+                    events (participation_id, employee_name,employee_mail,event_id,event_name,participation_fee,event_date,version)
+                    VALUES (:participation_id, :employee_name, :employee_mail, :event_id, :event_name, :participation_fee, :event_date, :version)";  
+            // Create a statement
+            $st = $this->_pdo->prepare($sql);
+            $fee_data = [];
+            foreach ($fields as $field) {
+                if(!is_object($field)) {
+                    return "Invalid data format";
                 }
+
+                // bind values and execute statement in a loop:
+                $st->bindValue( ":participation_id", $field->participation_id);
+                $st->bindValue( ":employee_name", $field->employee_name);
+                $st->bindValue( ":employee_mail", $field->employee_mail);
+                $st->bindValue( ":event_id", $field->event_id);
+                $st->bindValue( ":event_name", $field->event_name);
+                $st->bindValue( ":participation_fee", $field->participation_fee);
+                $st->bindValue( ":event_date", $field->event_date);
+                $field->version = isset($field->version) ? $field->version : null;
+                $st->bindValue( ":version", $field->version);
+
+
+                // $st->bindValue( ":Description", $desc, PDO::PARAM_STR );
+                $st->execute();
+                $last_id = $this->_pdo->lastInsertId();
             }
-
-            if($this->_query->execute()){
-                $this->_results = $this->_query->fetchAll(PDO::FETCH_OBJ);
-                $this->_count = $this->_query->rowCount();
-            }else{
-                $this->_error = true;
-            }
-        }
-
-        return $this;
-    }
-
-    private function action($action, $table, $where = array()){
-
-        if(count($where) === 3){
-            $operators = array('=', '>', '<', '>=', '<=');
-
-            $field      = $where[0];
-            $operator   = $where[1];
-            $value      = $where[2];
-
-            if(in_array($operator, $operators)){
-                $sql = "{$action} FROM {$table} WHERE {$field} {$operator} ?";
-                if(!$this->query($sql, array($value))->error()){
-                    return $this;
-                }
-            }
-        }
-        return false;
-    }
-
-    public function get($table, $where){
-        return $this->action('SELECT *', $table, $where);
-    }
-
-    public function delete($table, $where = array()){
-        return $this->action('DELETE', $table, $where);
-    }
-
-    /*
-     * return true/false
-     * */
-    public function insert($table, $fields = array()){
-
-        if(count($fields)){
-            $keys   = array_keys($fields);
-            $values = '';
-            $x      = 1;
-
-            foreach($fields as $field){
-                $values .= '?';
-                if($x < count($fields)){
-                    $values .= ', ';
-                }
-                $x++;
-            }
-
-            $sql = "INSERT INTO {$table} (".implode(', ', $keys).") VALUES ({$values})";
-
-
-            if(!$this->query($sql, $fields)->error()){
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function update($table, $id, $fields){
-        $set = '';
-        $x = 1;
-
-        foreach($fields as $name => $value){
-            $set .= "{$name} = ?";
-            if($x < count($fields)) {
-                $set .= ', ';
-            }
-            $x++;
-        }
-
-        $sql = "UPDATE {$table} SET {$set} WHERE id = {$id}";
-
-        if(!$this->query($sql, $fields)->error()){
             return true;
+        } catch(PDOException $e) {
+            return $e->getMessage();
         }
     }
-
-    public function error(){
-        return $this->_error;
-    }
-
-    public function count(){
-        return $this->_count;
-    }
-
-    public function results(){
-        return $this->_results;
-    }
-
-    public function first(){
-        return $this->results()[0];
-    }
-
-    public function pre(){
-        echo '<pre>';
-        var_dump($this);
-        echo '</pre>';
-    }
-
-    public function simple(){
-        echo '<pre>';
-        print_r($this);
-        echo '</pre>';
-    }
-
-
-
-
 
 } 
