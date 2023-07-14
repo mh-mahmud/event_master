@@ -2,43 +2,28 @@
 
 require_once 'core/init.php';
 
-function dd($data) {
-    echo "<pre>";
-    print_r($data);
-    die;
-}
-
-if(Session::exists('success')){
-    echo Session::flash('success');
-}
-
-
-if(!empty($_POST) && $_FILES['upload_file']['tmp_name']) {
-
-    echo "<pre>";
-    print_r($_FILES);
+if(isset($_POST['upload_form'])) {
     if($_FILES['upload_file']['type'] != "application/json") {
         return;
     }
 
     $json_data = json_decode(file_get_contents($_FILES['upload_file']['tmp_name']));
-    $user = new User();
-    $insert = $user->uploadJsonData($json_data);
-    dd($insert);
-
-    dd($json_data);
-
+    $insert = (new Upload())->uploadJsonData($json_data);
+    if($insert===true) {
+        echo "<span style='color:green'>File uploaded successfully</span><br /><br />";
+    }
+    else {
+        echo $insert;
+    }
 }
 
+$query_params = [];
+if(isset($_POST['search'])) {
+    $query_params = $_POST;
+}
+$e_data = (new Events())->get_events($query_params);
+
+
+require_once("views/upload.php");
+require_once("views/events.php");
 ?>
-
-<form action="" method="post" enctype="multipart/form-data" autocomplete="off">
-    <div class="field">
-        <label for="username">Upload File</label>
-        <input type="file" name="upload_file" accept=".json" required />
-    </div><br>
-
-    <input type="hidden" name="token" value="<?php echo Token::generate();?>"/>
-
-    <input type="submit" value="Login"/>
-</form><hr>
